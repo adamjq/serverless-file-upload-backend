@@ -26,10 +26,11 @@ type UploadResponse {
 type Upload {
     id: String!
     name: String!
-    location: String!
+    # Where the object is stored in S3 with the format "Bucket/Key"
+    location: String!,
     status: UploadStatus!
-    createdDateTime: AWSDateTime!
-    modifiedDateTime: AWSDateTime!
+    created: AWSDateTime!
+    modified: AWSDateTime!
     description: String
     # Size of the file in bytes
     size: Int

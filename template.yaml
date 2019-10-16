@@ -10,6 +10,20 @@ Globals:
 
 Resources:
 
+  UserObjectBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - PUT
+              - HEAD
+            AllowedOrigins:
+              - "*"
+
   AppSyncApi:
     Type: AWS::AppSync::GraphQLApi
     Properties:
@@ -49,11 +63,20 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs
 
+  # Lambdas
+
   UploadObjectLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ./handler.zip
       Handler: uploadObject.handler
+      Environment:
+        Variables:
+          USER_UPLOAD_S3_BUCKET: !Ref UserObjectBucket
+          USER_UPLOAD_S3_BUCKET_REGION: !Ref "AWS::Region"
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref UserObjectBucket
 
   # AppSync Data Sources
 
@@ -67,6 +90,8 @@ Resources:
       ServiceRoleArn: !GetAtt AppSyncLambdaServiceRole.Arn
       LambdaConfig:
         LambdaFunctionArn: !GetAtt UploadObjectLambdaFunction.Arn
+
+  # Resolvers
 
   UploadObjectMutationResolver:
     Type: AWS::AppSync::Resolver

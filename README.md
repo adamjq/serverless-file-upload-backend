@@ -1,12 +1,19 @@
-# typescript-lambda-template
-Template for Serverless projects using Typescript, NodeJS and AWS SAM
+# Serverless File Upload Backend
+
+Serverless backend for uploading files to S3 via a GraphQL API.
 
 ## Requirements
 
 * AWS CLI already configured with Administrator permission
-* [nodejs10.x installed](https://nodejs.org/en/download/releases/)
-* [Docker installed](https://www.docker.com/community-edition)
-* Typescript installed
+* SAM CLI
+* [nodejs10.x](https://nodejs.org/en/download/releases/)
+* [Docker](https://www.docker.com/community-edition)
+* Typescript
+
+## Development
+
+- GraphQL schema to Typescript type generation is used with [graphql-schema-typescript](https://github.com/dangcuuson/graphql-schema-typescript)  
+
 
 ## Packaging and deployment
 

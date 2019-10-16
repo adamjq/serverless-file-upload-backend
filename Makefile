@@ -9,6 +9,9 @@ install:
 
 test:
 	npm test
+
+graphql-to-ts:
+	graphql-schema-typescript generate-ts graphql --output "./src/types/graphql.d.ts"
 	
 build:
 	npm run build
@@ -40,6 +43,6 @@ deploy:
 		--stack-name "${STACK_NAME}" \
 		--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM
 
-deploy-stack: clean install build validate package deploy
+deploy-stack: clean install graphql-to-ts build validate package deploy
 
-local-package: clean install validate build bundle
+local-package: clean install validate graphql-to-ts build bundle
