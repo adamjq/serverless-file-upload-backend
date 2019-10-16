@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-# Description:
+Description: Serverless backend and GraphQL API for uploading objects to S3 securely
 # Parameters:
 
 Globals:
@@ -10,8 +10,82 @@ Globals:
 
 Resources:
 
-  LambdaFunction:
+  AppSyncApi:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: "API_KEY"
+      Name: "S3UploadAppSyncAPI"
+      LogConfig:
+        CloudWatchLogsRoleArn: !GetAtt AppSyncLambdaServiceRole.Arn
+        FieldLogLevel: ERROR
+
+  AppSyncSchema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      DefinitionS3Location: ./graphql/schema.graphql
+
+  AppSyncLambdaServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - appsync.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AppSyncInvokeLambdaPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - !GetAtt UploadObjectLambdaFunction.Arn
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs
+
+  UploadObjectLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ./handler.zip
-      Handler: lambda.handler
+      Handler: uploadObject.handler
+
+  # AppSync Data Sources
+
+  UploadObjectLambdaDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: UploadObjectLambdaDataSource
+      Description: "The AppSync Lambda Data Source for the uploadObject mutation"
+      Type: AWS_LAMBDA
+      ServiceRoleArn: !GetAtt AppSyncLambdaServiceRole.Arn
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt UploadObjectLambdaFunction.Arn
+
+  UploadObjectMutationResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: uploadObject
+      DataSourceName: !GetAtt UploadObjectLambdaDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "Invoke",
+          "payload": {
+            "arguments": $utils.toJson($ctx.args),
+            "identity": $utils.toJson($context.identity),
+            "request": $utils.toJson($context.request),
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($context.result)
+
+

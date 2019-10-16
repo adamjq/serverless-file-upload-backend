@@ -1,0 +1,47 @@
+type Schema {
+    query: Query
+    mutation: Mutation
+}
+
+type Query {
+    upload(id: String!): Upload
+}
+
+
+type Mutation {
+    uploadObject(upload: UploadObjectInput!): UploadResponse!
+}
+
+input UploadObjectInput {
+    name: String!
+    description: String
+}
+
+type UploadResponse {
+    upload: Upload!
+    # S3 presigned URL to upload file to
+    uploadURL: AWSURL!
+}
+
+type Upload {
+    id: String!
+    name: String!
+    location: String!
+    status: UploadStatus!
+    createdDateTime: AWSDateTime!
+    modifiedDateTime: AWSDateTime!
+    description: String
+    # Size of the file in bytes
+    size: Int
+    # Mime type of the file e.g. 'text/plain' or 'image/jpeg'
+    mimeType: String
+    # Base64 encoded thumbnail of the file
+    thumbnail: String
+}
+
+enum UploadStatus {
+    CREATED
+    UPLOADED
+    REJECTED
+    COMPLETED
+}

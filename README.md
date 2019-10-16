@@ -18,8 +18,8 @@ aws s3 mb s3://BUCKET_NAME
 
 Set the follow environment variables:
 ```bash
-export S3_BUCKET=
-export STACK_NAME=
+export S3_BUCKET=appsync-upload-api-bucket
+export STACK_NAME=appsync-upload-api
 ```
 
 ```bash

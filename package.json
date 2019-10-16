@@ -47,6 +47,8 @@
     "typescript": "^3.4.5"
   },
   "dependencies": {
-    "bunyan": "^1.8.12"
+    "@types/uuid": "^3.4.5",
+    "bunyan": "^1.8.12",
+    "uuid": "^3.3.3"
   }
 }
