@@ -18,6 +18,8 @@ const ddb = new DynamoDB.DocumentClient()
 const DEFAULT_STATUS: GQLUploadStatus = GQLUploadStatus.CREATED
 // Pre-signed URLs are valid for 5 minutes for file uploads
 const EXPIRY_TIME = 300
+// Default type for unknown binary files, see https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types
+const CONTENT_TYPE = "application/octet-stream"
 
 export const handler = async (event: any) => {
     logger.info(event);
@@ -32,6 +34,7 @@ export const handler = async (event: any) => {
         Bucket: UPLOAD_S3_BUCKET,
         Key: s3BucketKey,
         Expires: EXPIRY_TIME,
+        ContentType: CONTENT_TYPE,
     }
     const signedURL = s3.getSignedUrl('putObject', params)
 

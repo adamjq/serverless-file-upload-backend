@@ -4,6 +4,7 @@ Serverless backend for uploading files to S3 via a GraphQL API.
 
 ## Requirements
 
+* Python3
 * AWS CLI already configured with Administrator permission
 * SAM CLI
 * [nodejs10.x](https://nodejs.org/en/download/releases/)
@@ -13,7 +14,19 @@ Serverless backend for uploading files to S3 via a GraphQL API.
 ## Development
 
 - GraphQL schema to Typescript type generation is used with [graphql-schema-typescript](https://github.com/dangcuuson/graphql-schema-typescript)  
+- Files are uploaded with `Content-Type: application/octet-stream` which represents an unknown binary file  
 
+
+## Testing uploads
+
+There is a python script for uploading a file to S3 using the pre-signed URL.
+
+First, make an `uploadObject` mutation via the AWS AppSync console.
+Add the pre-signed URL from the mutation response to the python script and run:
+
+```
+python3 uploader.py
+```
 
 ## Packaging and deployment
 
