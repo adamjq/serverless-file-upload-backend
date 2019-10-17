@@ -22,18 +22,27 @@ export const handler = async (event: any) => {
     const location = `${bucketName}/${objectKey}`
     logger.info(`Object location: ${location}`)
 
-    // First, Get the item in it's current state
+    // First, Query the item in it's current state by global seconary index
     let uploadItem: any = {}
-    const dbGetParams: DynamoDB.DocumentClient.GetItemInput = {
+    const dbQueryParams : DynamoDB.DocumentClient.QueryInput = {
         TableName: UPLOAD_DDB_TABLE_NAME,
-        Key: {
-            location: location
+        IndexName: 'location',
+        KeyConditionExpression: "#l = :s3path",
+        ExpressionAttributeNames:{
+            "#l": "location"
+        },
+        ExpressionAttributeValues: {
+            ":s3path": location
         }
     }
     try {
-        const data = await ddb.get(dbGetParams).promise();
-        logger.info('Successfully got upload item:', data.Item);
-        uploadItem = data.Item as GQLUpload
+        const data = await ddb.query(dbQueryParams).promise()
+        if (data.Items && data.Items.length) {
+            logger.info({item: data.Items[0]}, 'Successfully got upload item');
+            uploadItem = data.Items[0] as GQLUpload
+        } else {
+            logger.error({data}, 'Item does not exist');
+        }
     } catch (err) {
         logger.error('ERROR:', err);
         return err;
@@ -41,6 +50,7 @@ export const handler = async (event: any) => {
 
     uploadItem.status = GQLUploadStatus.UPLOADED
     uploadItem.size = objectSize
+    uploadItem.modified = new Date().toISOString()
 
     // Store the upload in DynamoDB in a CREATED state
     const dbPutParams: DynamoDB.DocumentClient.PutItemInput = {
