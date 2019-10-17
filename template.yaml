@@ -10,7 +10,54 @@ Globals:
 
 Resources:
 
-  UserObjectBucket:
+  # Can be queried by (id, created), (id, modified), (location, created)
+  UploadTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: 'id'
+          AttributeType: 'S'
+        - AttributeName: 'location'
+          AttributeType: 'S'
+        - AttributeName: 'created'
+          AttributeType: 'S'
+        - AttributeName: 'modified'
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'id'
+          KeyType: 'HASH'
+        - AttributeName: 'created'
+          KeyType: 'RANGE'
+      LocalSecondaryIndexes:
+        - IndexName: lastModified
+          KeySchema:
+            - AttributeName: 'id'
+              KeyType: 'HASH'
+            - AttributeName: 'modified'
+              KeyType: 'RANGE'
+          Projection:
+            ProjectionType: ALL
+      GlobalSecondaryIndexes:
+        - IndexName: location
+          KeySchema:
+            - AttributeName: 'location'
+              KeyType: HASH
+            - AttributeName: 'created'
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      StreamSpecification:
+        StreamViewType: 'NEW_AND_OLD_IMAGES'
+      TimeToLiveSpecification:
+        AttributeName: 'ttl'
+        Enabled: true
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  UploadObjectBucket:
     Type: AWS::S3::Bucket
     Properties:
       CorsConfiguration:
@@ -30,7 +77,7 @@ Resources:
       AuthenticationType: "API_KEY"
       Name: "S3UploadAppSyncAPI"
       LogConfig:
-        CloudWatchLogsRoleArn: !GetAtt AppSyncLambdaServiceRole.Arn
+        CloudWatchLogsRoleArn: !GetAtt AppSyncServiceRole.Arn
         FieldLogLevel: ERROR
 
   AppSyncSchema:
@@ -39,7 +86,7 @@ Resources:
       ApiId: !GetAtt AppSyncApi.ApiId
       DefinitionS3Location: ./graphql/schema.graphql
 
-  AppSyncLambdaServiceRole:
+  AppSyncServiceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -60,25 +107,111 @@ Resources:
                   - lambda:InvokeFunction
                 Resource:
                   - !GetAtt UploadObjectLambdaFunction.Arn
+        - PolicyName: AppSyncDDBPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                Resource:
+                  - !GetAtt UploadTable.Arn
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs
 
   # Lambdas
 
+  S3UploadFanoutLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
+
+  FanoutLambdaInvokePolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "FanoutLambdaInvokePolicy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "lambda:InvokeFunction"
+            Resource:
+              - !GetAtt RecordUploadLambdaFunction.Arn
+      Roles:
+        - !Ref S3UploadFanoutLambdaRole
+
+  # Triggered to objects being upload to S3 buckets
+  S3UploadFanoutLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./handler.zip
+      Handler: fanout.handler
+      Role: !GetAtt S3UploadFanoutLambdaRole.Arn
+      Environment:
+        Variables:
+          RECORD_UPLOAD_LAMBDA_FUNCTION_ARN: !GetAtt RecordUploadLambdaFunction.Arn
+      Events:
+        UploadEvent:
+          Type: S3
+          Properties:
+            Bucket: !Ref UploadObjectBucket
+            Events:
+              - 's3:ObjectCreated:Put'
+
+  # Updates DDB table to confirm file was uploaded
+  RecordUploadLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./handler.zip
+      Handler: recordUpload.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UploadTable
+      Environment:
+        Variables:
+          UPLOAD_DDB_TABLE_NAME: !Ref UploadTable
+
   UploadObjectLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ./handler.zip
-      Handler: uploadObject.handler
+      Handler: resolvers/uploadObject.handler
       Environment:
         Variables:
-          USER_UPLOAD_S3_BUCKET: !Ref UserObjectBucket
-          USER_UPLOAD_S3_BUCKET_REGION: !Ref "AWS::Region"
+          UPLOAD_S3_BUCKET: !Ref UploadObjectBucket
+          UPLOAD_S3_BUCKET_REGION: !Ref "AWS::Region"
+          UPLOAD_DDB_TABLE_NAME: !Ref UploadTable
       Policies:
         - S3CrudPolicy:
-            BucketName: !Ref UserObjectBucket
+            BucketName: !Ref UploadObjectBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UploadTable
 
   # AppSync Data Sources
+
+  UploadDDBDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: UploadQueryDDBDataSource
+      Description: "The AppSync Data Source for the upload dynamodb table"
+      Type: AMAZON_DYNAMODB
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+      DynamoDBConfig:
+        AwsRegion: !Ref "AWS::Region"
+        TableName: !Ref UploadTable
 
   UploadObjectLambdaDataSource:
     Type: AWS::AppSync::DataSource
@@ -87,11 +220,29 @@ Resources:
       Name: UploadObjectLambdaDataSource
       Description: "The AppSync Lambda Data Source for the uploadObject mutation"
       Type: AWS_LAMBDA
-      ServiceRoleArn: !GetAtt AppSyncLambdaServiceRole.Arn
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
       LambdaConfig:
         LambdaFunctionArn: !GetAtt UploadObjectLambdaFunction.Arn
 
   # Resolvers
+
+  UploadQueryResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Query
+      FieldName: upload
+      DataSourceName: !GetAtt UploadDDBDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "GetItem",
+          "key" : {
+            "id" : { "S" : "${context.arguments.id}" }
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($context.result)
 
   UploadObjectMutationResolver:
     Type: AWS::AppSync::Resolver

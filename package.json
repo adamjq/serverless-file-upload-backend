@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "test": "jest"
+    "test": "jest",
+    "lint": "npm run lint-graphql",
+    "lint-graphql": "graphql-schema-linter graphql/*.graphql graphql/schema_aws_appsync.graphql"
   },
   "jest": {
     "collectCoverage": true,
@@ -34,6 +36,17 @@
     "typescript",
     "lambda"
   ],
+  "graphql-schema-linter": {
+    "rules": [
+      "enum-values-all-caps",
+      "enum-values-sorted-alphabetically",
+      "fields-are-camel-cased",
+      "input-object-values-are-camel-cased",
+      "relay-connection-types-spec",
+      "relay-connection-arguments-spec",
+      "types-are-capitalized"
+    ]
+  },
   "author": "",
   "license": "ISC",
   "devDependencies": {
@@ -50,6 +63,7 @@
     "@types/uuid": "^3.4.5",
     "bunyan": "^1.8.12",
     "graphql": "^14.5.8",
+    "graphql-schema-linter": "^0.2.1",
     "graphql-schema-typescript": "^1.3.1",
     "uuid": "^3.3.3"
   }

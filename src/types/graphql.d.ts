@@ -30,10 +30,10 @@ export interface GQLUpload {
 }
 
 export const enum GQLUploadStatus {
+  COMPLETED = 'COMPLETED',
   CREATED = 'CREATED',
-  UPLOADED = 'UPLOADED',
   REJECTED = 'REJECTED',
-  COMPLETED = 'COMPLETED'
+  UPLOADED = 'UPLOADED'
 }
 
 /**

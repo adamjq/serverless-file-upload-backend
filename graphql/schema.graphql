@@ -41,8 +41,8 @@ type Upload {
 }
 
 enum UploadStatus {
-    CREATED
-    UPLOADED
-    REJECTED
     COMPLETED
+    CREATED
+    REJECTED
+    UPLOADED
 }
