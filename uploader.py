@@ -6,8 +6,8 @@ import requests
 
 # Pre-signed URL from uploadObject mutation goes here
 url = ""
-# Path to file to be uploaded goes here
-filename = ""
+# Path to file to be uploaded
+filename = "media/S3.png"
 
 with open(filename, 'rb') as f:
     files = {'file': (filename, f)}

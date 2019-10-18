@@ -11,11 +11,14 @@ Serverless backend for uploading files to S3 via a GraphQL API.
 * [Docker](https://www.docker.com/community-edition)
 * Typescript
 
+## Overview and Architecture
+
+![Upload Architecture](media/architecture.png)
+
 ## Development
 
 - GraphQL schema to Typescript type generation is used with [graphql-schema-typescript](https://github.com/dangcuuson/graphql-schema-typescript)  
 - Files are uploaded with `Content-Type: application/octet-stream` which represents an unknown binary file  
-
 
 ## Testing uploads
 
