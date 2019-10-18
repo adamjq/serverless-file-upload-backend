@@ -10,11 +10,21 @@ type Query {
 
 type Mutation {
     uploadObject(upload: UploadObjectInput!): UploadResponse!
+    updateUpload(location: String!, update : UpdateUploadInput): Upload!
 }
 
 input UploadObjectInput {
     name: String!
     description: String
+}
+
+input UpdateUploadInput {
+    name: String
+    description: String
+    status: UploadStatus!
+    size: Int
+    mimeType: String
+    thumbnail: String
 }
 
 type UploadResponse {

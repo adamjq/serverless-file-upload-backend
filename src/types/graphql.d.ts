@@ -43,6 +43,7 @@ export type GQLAWSDateTime = any;
 
 export interface GQLMutation {
   uploadObject: GQLUploadResponse;
+  updateUpload: GQLUpload;
 }
 
 export interface GQLUploadObjectInput {
@@ -59,6 +60,15 @@ export interface GQLUploadResponse {
  * The AWSURL scalar type represents a valid URL string. The URL may use any scheme and may also be a local URL (Ex: <http://localhost/>). URLs without schemes are considered invalid. URLs which contain double slashes are also considered invalid.
  */
 export type GQLAWSURL = any;
+
+export interface GQLUpdateUploadInput {
+  name?: string;
+  description?: string;
+  status: GQLUploadStatus;
+  size?: number;
+  mimeType?: string;
+  thumbnail?: string;
+}
 
 export interface GQLSchema {
   query?: GQLQuery;
@@ -195,6 +205,7 @@ export interface UploadToThumbnailResolver<TParent = any, TResult = any> {
 
 export interface GQLMutationTypeResolver<TParent = any> {
   uploadObject?: MutationToUploadObjectResolver<TParent>;
+  updateUpload?: MutationToUpdateUploadResolver<TParent>;
 }
 
 export interface MutationToUploadObjectArgs {
@@ -202,6 +213,14 @@ export interface MutationToUploadObjectArgs {
 }
 export interface MutationToUploadObjectResolver<TParent = any, TResult = any> {
   (parent: TParent, args: MutationToUploadObjectArgs, context: any, info: GraphQLResolveInfo): TResult;
+}
+
+export interface MutationToUpdateUploadArgs {
+  location: string;
+  update?: GQLUpdateUploadInput;
+}
+export interface MutationToUpdateUploadResolver<TParent = any, TResult = any> {
+  (parent: TParent, args: MutationToUpdateUploadArgs, context: any, info: GraphQLResolveInfo): TResult;
 }
 
 export interface GQLUploadResponseTypeResolver<TParent = any> {

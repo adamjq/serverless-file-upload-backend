@@ -1,7 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Serverless backend and GraphQL API for uploading objects to S3 securely
-# Parameters:
 
 Globals:
   Function:
@@ -71,6 +70,11 @@ Resources:
             AllowedOrigins:
               - "*"
 
+  AppSyncApiKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+
   AppSyncApi:
     Type: AWS::AppSync::GraphQLApi
     Properties:
@@ -97,27 +101,39 @@ Resources:
               Service:
                 - appsync.amazonaws.com
             Action: sts:AssumeRole
-      Policies:
-        - PolicyName: AppSyncInvokeLambdaPolicy
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - lambda:InvokeFunction
-                Resource:
-                  - !GetAtt UploadObjectLambdaFunction.Arn
-        - PolicyName: AppSyncDDBPolicy
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - dynamodb:GetItem
-                Resource:
-                  - !GetAtt UploadTable.Arn
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs
+
+  AppSyncLambdaInvokePolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "AppSyncLambdaInvokePolicy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "lambda:InvokeFunction"
+            Resource:
+              - !GetAtt UploadObjectLambdaFunction.Arn
+              - !GetAtt UpdateUploadLambdaFunction.Arn
+      Roles:
+        - !Ref AppSyncServiceRole
+
+  AppSyncDDBPolicy:
+    Type: "AWS::IAM::Policy"
+    Properties:
+      PolicyName: "AppSyncDDBPolicy"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+            Resource:
+              - !GetAtt UploadTable.Arn
+      Roles:
+        - !Ref AppSyncServiceRole
 
   # Lambdas
 
@@ -148,7 +164,10 @@ Resources:
             Action:
               - "lambda:InvokeFunction"
             Resource:
-              - !GetAtt RecordUploadLambdaFunction.Arn
+              - !GetAtt RecordUploadedLambdaFunction.Arn
+              - !GetAtt AddMetadataLambdaFunction.Arn
+              - !GetAtt VirusScanLambdaFunction.Arn
+              - !GetAtt GenerateThumbnailLambdaFunction.Arn
       Roles:
         - !Ref S3UploadFanoutLambdaRole
 
@@ -161,7 +180,10 @@ Resources:
       Role: !GetAtt S3UploadFanoutLambdaRole.Arn
       Environment:
         Variables:
-          RECORD_UPLOAD_LAMBDA_FUNCTION_ARN: !GetAtt RecordUploadLambdaFunction.Arn
+          RECORD_UPLOAD_LAMBDA_FUNCTION_ARN: !GetAtt RecordUploadedLambdaFunction.Arn
+#          ADD_METADATA_LAMBDA_FUNCTION_ARN: !GetAtt AddMetadataLambdaFunction.Arn
+#          VIRUS_SCAN_LAMBDA_FUNCTION_ARN: !GetAtt VirusScanLambdaFunction.Arn
+#          GENERATE_THUMBNAIL_LAMBDA_FUNCTION_ARN: !GetAtt GenerateThumbnailLambdaFunction.Arn
       Events:
         UploadEvent:
           Type: S3
@@ -171,17 +193,58 @@ Resources:
               - 's3:ObjectCreated:Put'
 
   # Updates DDB table to confirm file was uploaded
-  RecordUploadLambdaFunction:
+  RecordUploadedLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ./handler.zip
-      Handler: recordUpload.handler
-      Policies:
-        - DynamoDBCrudPolicy:
-            TableName: !Ref UploadTable
+      Handler: processors/recordUploaded.handler
       Environment:
         Variables:
-          UPLOAD_DDB_TABLE_NAME: !Ref UploadTable
+          APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
+          APPSYNC_REGION: !Ref "AWS::Region"
+          APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
+
+  AddMetadataLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./handler.zip
+      Handler: processors/addMetadata.handler
+      Environment:
+        Variables:
+          APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
+          APPSYNC_REGION: !Ref "AWS::Region"
+          APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref UploadObjectBucket
+
+  VirusScanLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./handler.zip
+      Handler: processors/virusScan.handler
+      Environment:
+        Variables:
+          APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
+          APPSYNC_REGION: !Ref "AWS::Region"
+          APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref UploadObjectBucket
+
+  GenerateThumbnailLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./handler.zip
+      Handler: processors/generateThumbnail.handler
+      Environment:
+        Variables:
+          APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
+          APPSYNC_REGION: !Ref "AWS::Region"
+          APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref UploadObjectBucket
 
   UploadObjectLambdaFunction:
     Type: AWS::Serverless::Function
@@ -196,6 +259,18 @@ Resources:
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref UploadObjectBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UploadTable
+
+  UpdateUploadLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./handler.zip
+      Handler: resolvers/updateUpload.handler
+      Environment:
+        Variables:
+          UPLOAD_DDB_TABLE_NAME: !Ref UploadTable
+      Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UploadTable
 
@@ -223,6 +298,17 @@ Resources:
       ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
       LambdaConfig:
         LambdaFunctionArn: !GetAtt UploadObjectLambdaFunction.Arn
+
+  UpdateUploadLambdaDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      Name: UpdateUploadLambdaDataSource
+      Description: "The AppSync Lambda Data Source for the updateUpload mutation"
+      Type: AWS_LAMBDA
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt UpdateUploadLambdaFunction.Arn
 
   # Resolvers
 
@@ -264,4 +350,39 @@ Resources:
         }
       ResponseMappingTemplate: $util.toJson($context.result)
 
+  UpdateUploadOMutationResolver:
+    Type: AWS::AppSync::Resolver
+    DependsOn: AppSyncSchema
+    Properties:
+      ApiId: !GetAtt AppSyncApi.ApiId
+      TypeName: Mutation
+      FieldName: updateUpload
+      DataSourceName: !GetAtt UpdateUploadLambdaDataSource.Name
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "Invoke",
+          "payload": {
+            "arguments": $utils.toJson($ctx.args),
+            "identity": $utils.toJson($context.identity),
+            "request": $utils.toJson($context.request),
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($context.result)
 
+Outputs:
+  GraphQLApiId:
+    Description: Unique AWS AppSync GraphQL API Identifier
+    Value: !GetAtt AppSyncApi.ApiId
+    Export:
+      Name: !Sub "${AWS::StackName}-GraphQLApiId"
+  GraphQLApiUrl:
+    Description: The Endpoint URL of your GraphQL API.
+    Value: !GetAtt AppSyncApi.GraphQLUrl
+    Export:
+      Name: !Sub "${AWS::StackName}-GraphQLApiUrl"
+  GraphQLApiRegion:
+    Description: The AWS Region of your GraphQL API.
+    Value: !Sub "${AWS::Region}"
+    Export:
+      Name: !Sub "${AWS::StackName}-GraphQLApiRegion"
