@@ -18,6 +18,7 @@ export interface GQLQuery {
 
 export interface GQLUpload {
   id: string;
+  customerId: string;
   name: string;
   location: string;
   status: GQLUploadStatus;
@@ -47,8 +48,9 @@ export interface GQLMutation {
 }
 
 export interface GQLUploadObjectInput {
-  name: string;
+  customerId: string;
   description?: string;
+  name: string;
 }
 
 export interface GQLUploadResponse {
@@ -68,6 +70,10 @@ export interface GQLUpdateUploadInput {
   size?: number;
   mimeType?: string;
   thumbnail?: string;
+}
+
+export interface GQLSubscription {
+  newUploadUpdate?: GQLUpload;
 }
 
 export interface GQLSchema {
@@ -130,6 +136,7 @@ export interface GQLResolver {
   Mutation?: GQLMutationTypeResolver;
   UploadResponse?: GQLUploadResponseTypeResolver;
   AWSURL?: GraphQLScalarType;
+  Subscription?: GQLSubscriptionTypeResolver;
   Schema?: GQLSchemaTypeResolver;
   AWSDate?: GraphQLScalarType;
   AWSTime?: GraphQLScalarType;
@@ -152,6 +159,7 @@ export interface QueryToUploadResolver<TParent = any, TResult = any> {
 
 export interface GQLUploadTypeResolver<TParent = any> {
   id?: UploadToIdResolver<TParent>;
+  customerId?: UploadToCustomerIdResolver<TParent>;
   name?: UploadToNameResolver<TParent>;
   location?: UploadToLocationResolver<TParent>;
   status?: UploadToStatusResolver<TParent>;
@@ -164,6 +172,10 @@ export interface GQLUploadTypeResolver<TParent = any> {
 }
 
 export interface UploadToIdResolver<TParent = any, TResult = any> {
+  (parent: TParent, args: {}, context: any, info: GraphQLResolveInfo): TResult;
+}
+
+export interface UploadToCustomerIdResolver<TParent = any, TResult = any> {
   (parent: TParent, args: {}, context: any, info: GraphQLResolveInfo): TResult;
 }
 
@@ -234,6 +246,18 @@ export interface UploadResponseToUploadResolver<TParent = any, TResult = any> {
 
 export interface UploadResponseToUploadURLResolver<TParent = any, TResult = any> {
   (parent: TParent, args: {}, context: any, info: GraphQLResolveInfo): TResult;
+}
+
+export interface GQLSubscriptionTypeResolver<TParent = any> {
+  newUploadUpdate?: SubscriptionToNewUploadUpdateResolver<TParent>;
+}
+
+export interface SubscriptionToNewUploadUpdateArgs {
+  customerId: string;
+}
+export interface SubscriptionToNewUploadUpdateResolver<TParent = any, TResult = any> {
+  resolve?: (parent: TParent, args: SubscriptionToNewUploadUpdateArgs, context: any, info: GraphQLResolveInfo) => TResult;
+  subscribe: (parent: TParent, args: SubscriptionToNewUploadUpdateArgs, context: any, info: GraphQLResolveInfo) => AsyncIterator<TResult>;
 }
 
 export interface GQLSchemaTypeResolver<TParent = any> {

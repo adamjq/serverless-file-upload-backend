@@ -7,15 +7,20 @@ type Query {
     upload(id: String!): Upload
 }
 
-
 type Mutation {
     uploadObject(upload: UploadObjectInput!): UploadResponse!
     updateUpload(location: String!, update : UpdateUploadInput): Upload!
 }
 
+type Subscription {
+    newUploadUpdate(customerId: String!): Upload
+        @aws_subscribe(mutations: ["updateUpload"])
+}
+
 input UploadObjectInput {
-    name: String!
+    customerId: String!
     description: String
+    name: String!
 }
 
 input UpdateUploadInput {
@@ -35,6 +40,7 @@ type UploadResponse {
 
 type Upload {
     id: String!
+    customerId: String!
     name: String!
     # Where the object is stored in S3 with the format "Bucket/Key"
     location: String!,

@@ -16,6 +16,7 @@ describe("Update Upload tests", () => {
 
       const mockUpload: GQLUpload = {
         "id": "cbcaf35e-d471-4640-bb10-c20c311a0223",
+          "customerId": "1234",
         "name": "File",
         "location": "uploadobjectbucket-207e3ca3/207e3ca3-a5bc-4e6f-9c7f-334885ac884b",
         "description": "This file has been uploaded",
@@ -35,6 +36,7 @@ describe("Update Upload tests", () => {
 
       const expectedUpdatedUpload: GQLUpload = {
         "id": "cbcaf35e-d471-4640-bb10-c20c311a0223",
+          "customerId": "1234",
         "name": "File",
         "location": "uploadobjectbucket-207e3ca3/207e3ca3-a5bc-4e6f-9c7f-334885ac884b",
         "description": "This file has been uploaded",

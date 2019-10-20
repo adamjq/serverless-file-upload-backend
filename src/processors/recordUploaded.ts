@@ -16,8 +16,9 @@ export const handler = async (event: any) => {
     const location = getS3LocationFromEvent(event)
     logger.info(`Object location: ${location}`)
 
+
     const gqlMutation = {
-        "query": "mutation updateUpload(location: $location, update: { status: UPLOADED}) { id }",
+        "query": "mutation UpdateUpload($location: String!) { updateUpload(location: $location, update: { status: UPLOADED}) { id } }",
         "variables": { "location": location }
     }
    logger.info({gqlMutation})

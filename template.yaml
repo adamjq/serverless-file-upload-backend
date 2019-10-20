@@ -192,12 +192,29 @@ Resources:
             Events:
               - 's3:ObjectCreated:Put'
 
+#  RecordUploadedLambdaRole:
+#    Type: AWS::IAM::Role
+#    Properties:
+#      AssumeRolePolicyDocument:
+#        Version: "2012-10-17"
+#        Statement:
+#          - Effect: "Allow"
+#            Principal:
+#              Service:
+#                - "lambda.amazonaws.com"
+#            Action:
+#              - sts:AssumeRole
+#      ManagedPolicyArns:
+#        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+#        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
+
   # Updates DDB table to confirm file was uploaded
   RecordUploadedLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ./handler.zip
       Handler: processors/recordUploaded.handler
+#      Role: !GetAtt RecordUploadedLambdaRole.Arn
       Environment:
         Variables:
           APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl

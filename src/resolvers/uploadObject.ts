@@ -42,6 +42,7 @@ export const handler = async (event: any) => {
 
     const uploadObject: GQLUpload = {
         id: uploadId,
+        customerId: uploadInput.customerId,
         location: S3LocationPath,
         name: uploadInput.name,
         description: uploadInput.description,

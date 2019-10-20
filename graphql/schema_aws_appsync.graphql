@@ -47,3 +47,8 @@ scalar AWSPhone
 The AWSIPAddress scalar type represents a valid IPv4 or IPv6 address string.
 """
 scalar AWSIPAddress
+
+"""
+Specify multiple mutations which trigger a subscription.
+"""
+directive @aws_subscribe(mutations: [String!]!) on FIELD_DEFINITION
