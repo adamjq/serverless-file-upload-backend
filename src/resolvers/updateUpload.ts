@@ -19,6 +19,7 @@ interface HandlerEvent {
 }
 
 export const updateFields = (update: GQLUpdateUploadInput, upload: GQLUpload): GQLUpload => {
+    logger.info({update, upload}, "Building object with updated fields");
     Object.keys(update).forEach((k: string) => {
         // @ts-ignore
         upload[k] = update[k]

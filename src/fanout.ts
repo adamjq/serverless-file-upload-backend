@@ -15,15 +15,11 @@ const lambda = new AWS.Lambda()
 export const handler = async (event: any) => {
     logger.info(event);
 
-    // TODO: add this back in
-    // const fanoutFunctions: string[] = [
-    //     RECORD_UPLOAD_LAMBDA_FUNCTION_ARN,
-    //     ADD_METADATA_LAMBDA_FUNCTION_ARN,
-    //     VIRUS_SCAN_LAMBDA_FUNCTION_ARN,
-    //     GENERATE_THUMBNAIL_LAMBDA_FUNCTION_ARN
-    // ]
     const fanoutFunctions: string[] = [
-        RECORD_UPLOAD_LAMBDA_FUNCTION_ARN
+        RECORD_UPLOAD_LAMBDA_FUNCTION_ARN,
+        ADD_METADATA_LAMBDA_FUNCTION_ARN,
+        VIRUS_SCAN_LAMBDA_FUNCTION_ARN,
+        GENERATE_THUMBNAIL_LAMBDA_FUNCTION_ARN
     ]
 
     const fanoutPromises: any = []

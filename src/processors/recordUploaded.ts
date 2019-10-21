@@ -14,12 +14,14 @@ const APPSYNC_API_KEY = process.env.APPSYNC_API_KEY || ''
 export const handler = async (event: any) => {
     logger.info(event);
     const location = getS3LocationFromEvent(event)
-    logger.info(`Object location: ${location}`)
 
+    const update = {
+        status: GQLUploadStatus.UPLOADED
+    }
 
     const gqlMutation = {
-        "query": "mutation UpdateUpload($location: String!) { updateUpload(location: $location, update: { status: UPLOADED}) { id } }",
-        "variables": { "location": location }
+        "query": "mutation UpdateUpload($location: String!, $update: UpdateUploadInput) { updateUpload(location: $location, update: $update) { id } }",
+        "variables": { "location": location, "update": update }
     }
    logger.info({gqlMutation})
 

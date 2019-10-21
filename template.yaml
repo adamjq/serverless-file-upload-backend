@@ -2,6 +2,11 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Serverless backend and GraphQL API for uploading objects to S3 securely
 
+Parameters:
+  S3BucketName:
+    Type: String
+    Default: 'upload-service-s3-bucket'
+
 Globals:
   Function:
     Runtime: nodejs10.x
@@ -59,6 +64,7 @@ Resources:
   UploadObjectBucket:
     Type: AWS::S3::Bucket
     Properties:
+      BucketName: !Ref S3BucketName
       CorsConfiguration:
         CorsRules:
           - AllowedHeaders:
@@ -181,9 +187,9 @@ Resources:
       Environment:
         Variables:
           RECORD_UPLOAD_LAMBDA_FUNCTION_ARN: !GetAtt RecordUploadedLambdaFunction.Arn
-#          ADD_METADATA_LAMBDA_FUNCTION_ARN: !GetAtt AddMetadataLambdaFunction.Arn
-#          VIRUS_SCAN_LAMBDA_FUNCTION_ARN: !GetAtt VirusScanLambdaFunction.Arn
-#          GENERATE_THUMBNAIL_LAMBDA_FUNCTION_ARN: !GetAtt GenerateThumbnailLambdaFunction.Arn
+          ADD_METADATA_LAMBDA_FUNCTION_ARN: !GetAtt AddMetadataLambdaFunction.Arn
+          VIRUS_SCAN_LAMBDA_FUNCTION_ARN: !GetAtt VirusScanLambdaFunction.Arn
+          GENERATE_THUMBNAIL_LAMBDA_FUNCTION_ARN: !GetAtt GenerateThumbnailLambdaFunction.Arn
       Events:
         UploadEvent:
           Type: S3
@@ -231,9 +237,10 @@ Resources:
           APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
           APPSYNC_REGION: !Ref "AWS::Region"
           APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
+          UPLOAD_S3_BUCKET: !Ref S3BucketName
       Policies:
         - S3ReadPolicy:
-            BucketName: !Ref UploadObjectBucket
+            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
 
   VirusScanLambdaFunction:
     Type: AWS::Serverless::Function
@@ -245,9 +252,10 @@ Resources:
           APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
           APPSYNC_REGION: !Ref "AWS::Region"
           APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
+          UPLOAD_S3_BUCKET: !Ref S3BucketName
       Policies:
         - S3ReadPolicy:
-            BucketName: !Ref UploadObjectBucket
+            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
 
   GenerateThumbnailLambdaFunction:
     Type: AWS::Serverless::Function
@@ -259,9 +267,10 @@ Resources:
           APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
           APPSYNC_REGION: !Ref "AWS::Region"
           APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
+          UPLOAD_S3_BUCKET: !Ref S3BucketName
       Policies:
         - S3ReadPolicy:
-            BucketName: !Ref UploadObjectBucket
+            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
 
   UploadObjectLambdaFunction:
     Type: AWS::Serverless::Function

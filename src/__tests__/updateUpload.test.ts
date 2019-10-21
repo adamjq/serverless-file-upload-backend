@@ -23,9 +23,6 @@ describe("Update Upload tests", () => {
         "status": GQLUploadStatus.CREATED,
         "created": "2019-10-18T04:23:42.852Z",
         "modified": "2019-10-18T04:23:42.852Z",
-        "size": undefined,
-        "mimeType": undefined,
-        "thumbnail": undefined
       }
 
       const mockUpdate = {
@@ -45,7 +42,6 @@ describe("Update Upload tests", () => {
         "modified": mockISODateString,
         "size": 300,
         "mimeType": "image/png",
-        "thumbnail": undefined
       }
 
       const result = updateFields(mockUpdate, mockUpload)
