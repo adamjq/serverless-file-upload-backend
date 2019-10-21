@@ -5,6 +5,7 @@ import {getS3LocationFromEvent} from "../util"
 import readChunk from 'read-chunk'
 import fileType from 'file-type'
 import axios from "axios"
+import {GQLUploadStatus} from "../types/graphql";
 
 const logger = bunyan.createLogger({name: "addMetadata"})
 
@@ -25,25 +26,29 @@ const determineFileSize = (S3Event: any): number => {
 
 export const handler = async (event: any) => {
     logger.info(event);
-    const location = getS3LocationFromEvent(event)
 
-    const update = {
-        mimeType: determineMimeType(),
-        size: determineFileSize(event)
-    }
+    logger.info("Called from state machine")
 
-    const gqlMutation = {
-        "query": "mutation UpdateUpload($location: String!, $update: UpdateUploadInput) { updateUpload(location: $location, update: $update) { id } }",
-        "variables": { "location": location, "update": update }
-    }
-   logger.info({gqlMutation})
-
-    try {
-      const response = await axios.post(APPSYNC_URL, gqlMutation, { headers: {
-        'X-API-KEY': APPSYNC_API_KEY, 'Content-Type': 'application/json'
-      }})
-      logger.info({response})
-    } catch (error) {
-      logger.error({error})
-    }
+   //  const location = getS3LocationFromEvent(event)
+   //
+   //  const update = {
+   //      mimeType: determineMimeType(),
+   //      size: determineFileSize(event),
+   //      status: GQLUploadStatus.UPLOADED
+   //  }
+   //
+   //  const gqlMutation = {
+   //      "query": "mutation UpdateUpload($location: String!, $update: UpdateUploadInput) { updateUpload(location: $location, update: $update) { id } }",
+   //      "variables": { "location": location, "update": update }
+   //  }
+   // logger.info({gqlMutation})
+   //
+   //  try {
+   //    const response = await axios.post(APPSYNC_URL, gqlMutation, { headers: {
+   //      'X-API-KEY': APPSYNC_API_KEY, 'Content-Type': 'application/json'
+   //    }})
+   //    logger.info({response})
+   //  } catch (error) {
+   //    logger.error({error})
+   //  }
 }

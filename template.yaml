@@ -143,7 +143,7 @@ Resources:
 
   # Lambdas
 
-  S3UploadFanoutLambdaRole:
+  StartProcessorLambdaRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -159,37 +159,31 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
         - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
 
-  FanoutLambdaInvokePolicy:
+  StartProcessorStartExecutionPolicy:
     Type: "AWS::IAM::Policy"
     Properties:
-      PolicyName: "FanoutLambdaInvokePolicy"
+      PolicyName: "StartProcessorStartExecutionPolicy"
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
           - Effect: "Allow"
             Action:
-              - "lambda:InvokeFunction"
+              - "states:StartExecution"
             Resource:
-              - !GetAtt RecordUploadedLambdaFunction.Arn
-              - !GetAtt AddMetadataLambdaFunction.Arn
-              - !GetAtt VirusScanLambdaFunction.Arn
-              - !GetAtt GenerateThumbnailLambdaFunction.Arn
+              - !Ref ProcessorStateMachine
       Roles:
-        - !Ref S3UploadFanoutLambdaRole
+        - !Ref StartProcessorLambdaRole
 
   # Triggered to objects being upload to S3 buckets
-  S3UploadFanoutLambdaFunction:
+  StartProcessorLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ./handler.zip
-      Handler: fanout.handler
-      Role: !GetAtt S3UploadFanoutLambdaRole.Arn
+      Handler: startProcessor.handler
+      Role: !GetAtt StartProcessorLambdaRole.Arn
       Environment:
         Variables:
-          RECORD_UPLOAD_LAMBDA_FUNCTION_ARN: !GetAtt RecordUploadedLambdaFunction.Arn
-          ADD_METADATA_LAMBDA_FUNCTION_ARN: !GetAtt AddMetadataLambdaFunction.Arn
-          VIRUS_SCAN_LAMBDA_FUNCTION_ARN: !GetAtt VirusScanLambdaFunction.Arn
-          GENERATE_THUMBNAIL_LAMBDA_FUNCTION_ARN: !GetAtt GenerateThumbnailLambdaFunction.Arn
+          PROCESSING_STATE_MACHINE_ARN: !Ref ProcessorStateMachine
       Events:
         UploadEvent:
           Type: S3
@@ -198,34 +192,50 @@ Resources:
             Events:
               - 's3:ObjectCreated:Put'
 
-#  RecordUploadedLambdaRole:
-#    Type: AWS::IAM::Role
-#    Properties:
-#      AssumeRolePolicyDocument:
-#        Version: "2012-10-17"
-#        Statement:
-#          - Effect: "Allow"
-#            Principal:
-#              Service:
-#                - "lambda.amazonaws.com"
-#            Action:
-#              - sts:AssumeRole
-#      ManagedPolicyArns:
-#        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-#        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
-
-  # Updates DDB table to confirm file was uploaded
-  RecordUploadedLambdaFunction:
-    Type: AWS::Serverless::Function
+  ProcessorStateMachineLambdaInvokePolicy:
+    Type: "AWS::IAM::Policy"
     Properties:
-      CodeUri: ./handler.zip
-      Handler: processors/recordUploaded.handler
-#      Role: !GetAtt RecordUploadedLambdaRole.Arn
-      Environment:
-        Variables:
-          APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
-          APPSYNC_REGION: !Ref "AWS::Region"
-          APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
+      PolicyName: "ProcessorStateMachineLambdaInvokePolicy"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Action:
+              - "lambda:InvokeFunction"
+            Resource:
+              - !GetAtt AddMetadataLambdaFunction.Arn
+      Roles:
+        - !Ref ProcessorStateMachineRole
+
+  ProcessorStateMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: !Sub "states.${AWS::Region}.amazonaws.com"
+            Action:
+              - sts:AssumeRole
+
+  ProcessorStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn: !GetAtt ProcessorStateMachineRole.Arn
+      DefinitionString:
+        Fn::Sub: |
+          {
+            "Comment": "State Machine for processing uploaded files",
+            "StartAt": "Add Metadata",
+            "States": {
+              "Add Metadata": {
+                "Type": "Task",
+                "Resource": "${AddMetadataLambdaFunction.Arn}",
+                "End": true
+              }
+            }
+          }
 
   AddMetadataLambdaFunction:
     Type: AWS::Serverless::Function
@@ -242,35 +252,35 @@ Resources:
         - S3ReadPolicy:
             BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
 
-  VirusScanLambdaFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ./handler.zip
-      Handler: processors/virusScan.handler
-      Environment:
-        Variables:
-          APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
-          APPSYNC_REGION: !Ref "AWS::Region"
-          APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
-          UPLOAD_S3_BUCKET: !Ref S3BucketName
-      Policies:
-        - S3ReadPolicy:
-            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
-
-  GenerateThumbnailLambdaFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ./handler.zip
-      Handler: processors/generateThumbnail.handler
-      Environment:
-        Variables:
-          APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
-          APPSYNC_REGION: !Ref "AWS::Region"
-          APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
-          UPLOAD_S3_BUCKET: !Ref S3BucketName
-      Policies:
-        - S3ReadPolicy:
-            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
+#  VirusScanLambdaFunction:
+#    Type: AWS::Serverless::Function
+#    Properties:
+#      CodeUri: ./handler.zip
+#      Handler: processors/virusScan.handler
+#      Environment:
+#        Variables:
+#          APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
+#          APPSYNC_REGION: !Ref "AWS::Region"
+#          APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
+#          UPLOAD_S3_BUCKET: !Ref S3BucketName
+#      Policies:
+#        - S3ReadPolicy:
+#            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
+#
+#  GenerateThumbnailLambdaFunction:
+#    Type: AWS::Serverless::Function
+#    Properties:
+#      CodeUri: ./handler.zip
+#      Handler: processors/generateThumbnail.handler
+#      Environment:
+#        Variables:
+#          APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
+#          APPSYNC_REGION: !Ref "AWS::Region"
+#          APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
+#          UPLOAD_S3_BUCKET: !Ref S3BucketName
+#      Policies:
+#        - S3ReadPolicy:
+#            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
 
   UploadObjectLambdaFunction:
     Type: AWS::Serverless::Function
