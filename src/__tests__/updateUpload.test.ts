@@ -26,7 +26,7 @@ describe("Update Upload tests", () => {
       }
 
       const mockUpdate = {
-          status: GQLUploadStatus.UPLOADED,
+          status: GQLUploadStatus.COMPLETED,
           size: 300,
           mimeType: "image/png"
       }
@@ -37,7 +37,7 @@ describe("Update Upload tests", () => {
         "name": "File",
         "location": "uploadobjectbucket-207e3ca3/207e3ca3-a5bc-4e6f-9c7f-334885ac884b",
         "description": "This file has been uploaded",
-        "status": GQLUploadStatus.UPLOADED,
+        "status": GQLUploadStatus.COMPLETED,
         "created": "2019-10-18T04:23:42.852Z",
         "modified": mockISODateString,
         "size": 300,

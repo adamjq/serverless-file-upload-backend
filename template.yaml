@@ -203,7 +203,10 @@ Resources:
             Action:
               - "lambda:InvokeFunction"
             Resource:
-              - !GetAtt AddMetadataLambdaFunction.Arn
+              - !GetAtt RetrieveMetadataLambdaFunction.Arn
+              - !GetAtt GenerateThumbnailLambdaFunction.Arn
+              - !GetAtt VirusScanLambdaFunction.Arn
+              - !GetAtt PersistMetadataLambdaFunction.Arn
       Roles:
         - !Ref ProcessorStateMachineRole
 
@@ -227,60 +230,102 @@ Resources:
         Fn::Sub: |
           {
             "Comment": "State Machine for processing uploaded files",
-            "StartAt": "Add Metadata",
+            "StartAt": "ProcessFiles",
             "States": {
-              "Add Metadata": {
+              "ProcessFiles": {
+                "Type": "Parallel",
+                "ResultPath": "$.parallelResult",
+                "Next": "PersistMetadata",
+                "Branches": [
+                  {
+                    "StartAt": "RetrieveMetadata",
+                    "States": {
+                      "RetrieveMetadata": {
+                        "Type": "Task",
+                        "Resource": "${RetrieveMetadataLambdaFunction.Arn}",
+                        "End": true
+                      }
+                    }
+                  },
+                  {
+                    "StartAt": "GenerateThumbnail",
+                    "States": {
+                      "GenerateThumbnail": {
+                        "Type": "Task",
+                        "Resource": "${GenerateThumbnailLambdaFunction.Arn}",
+                        "End": true
+                      }
+                    }
+                  },
+                  {
+                    "StartAt": "VirusScan",
+                    "States": {
+                      "VirusScan": {
+                        "Type": "Task",
+                        "Resource": "${VirusScanLambdaFunction.Arn}",
+                        "End": true
+                      }
+                    }
+                  }
+                ]
+              },
+              "PersistMetadata": {
                 "Type": "Task",
-                "Resource": "${AddMetadataLambdaFunction.Arn}",
+                "Resource": "${PersistMetadataLambdaFunction.Arn}",
+                "ResultPath": null,
                 "End": true
               }
             }
           }
 
-  AddMetadataLambdaFunction:
+  # Final step function task, makes updateUpload mutation to AppSync
+  PersistMetadataLambdaFunction:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ./handler.zip
-      Handler: processors/addMetadata.handler
+      Handler: processors/persistMetadata.handler
       Environment:
         Variables:
           APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
           APPSYNC_REGION: !Ref "AWS::Region"
           APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
           UPLOAD_S3_BUCKET: !Ref S3BucketName
+
+  RetrieveMetadataLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./handler.zip
+      Handler: processors/retrieveMetadata.handler
+      Environment:
+        Variables:
+          UPLOAD_S3_BUCKET: !Ref S3BucketName
       Policies:
         - S3ReadPolicy:
             BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
 
-#  VirusScanLambdaFunction:
-#    Type: AWS::Serverless::Function
-#    Properties:
-#      CodeUri: ./handler.zip
-#      Handler: processors/virusScan.handler
-#      Environment:
-#        Variables:
-#          APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
-#          APPSYNC_REGION: !Ref "AWS::Region"
-#          APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
-#          UPLOAD_S3_BUCKET: !Ref S3BucketName
-#      Policies:
-#        - S3ReadPolicy:
-#            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
-#
-#  GenerateThumbnailLambdaFunction:
-#    Type: AWS::Serverless::Function
-#    Properties:
-#      CodeUri: ./handler.zip
-#      Handler: processors/generateThumbnail.handler
-#      Environment:
-#        Variables:
-#          APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
-#          APPSYNC_REGION: !Ref "AWS::Region"
-#          APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
-#          UPLOAD_S3_BUCKET: !Ref S3BucketName
-#      Policies:
-#        - S3ReadPolicy:
-#            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
+  VirusScanLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./handler.zip
+      Handler: processors/virusScan.handler
+      Environment:
+        Variables:
+          UPLOAD_S3_BUCKET: !Ref S3BucketName
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
+
+  GenerateThumbnailLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./handler.zip
+      Handler: processors/generateThumbnail.handler
+      Environment:
+        Variables:
+          UPLOAD_S3_BUCKET: !Ref S3BucketName
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
 
   UploadObjectLambdaFunction:
     Type: AWS::Serverless::Function

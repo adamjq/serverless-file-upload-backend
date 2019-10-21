@@ -60,5 +60,4 @@ enum UploadStatus {
     COMPLETED
     CREATED
     REJECTED
-    UPLOADED
 }
