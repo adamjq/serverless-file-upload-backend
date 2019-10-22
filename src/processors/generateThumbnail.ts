@@ -9,4 +9,8 @@ const UPLOAD_S3_BUCKET = process.env.UPLOAD_S3_BUCKET || ''
 
 export const handler = async (event: any) => {
     logger.info(event)
+
+    return {
+        thumbnail: null
+    }
 }

@@ -234,7 +234,7 @@ Resources:
             "States": {
               "ProcessFiles": {
                 "Type": "Parallel",
-                "ResultPath": "$.parallelResult",
+                "ResultPath": "$.processResults",
                 "Next": "PersistMetadata",
                 "Branches": [
                   {

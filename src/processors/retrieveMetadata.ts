@@ -21,4 +21,11 @@ const determineFileSize = (S3Event: any): number => {
 
 export const handler = async (event: any) => {
     logger.info(event)
+
+    const metadata = {
+        size: determineFileSize(event),
+        mimeType: determineMimeType()
+    }
+    logger.info({metadata}, "Metadata retrieved successfully")
+    return metadata
 }
