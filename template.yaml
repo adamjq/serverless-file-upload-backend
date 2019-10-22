@@ -123,21 +123,7 @@ Resources:
             Resource:
               - !GetAtt UploadObjectLambdaFunction.Arn
               - !GetAtt UpdateUploadLambdaFunction.Arn
-      Roles:
-        - !Ref AppSyncServiceRole
-
-  AppSyncDDBPolicy:
-    Type: "AWS::IAM::Policy"
-    Properties:
-      PolicyName: "AppSyncDDBPolicy"
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - dynamodb:GetItem
-            Resource:
-              - !GetAtt UploadTable.Arn
+              - !GetAtt UploadQueryLambdaFunction.Arn
       Roles:
         - !Ref AppSyncServiceRole
 
@@ -355,19 +341,30 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref UploadTable
 
+  UploadQueryLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./handler.zip
+      Handler: resolvers/upload.handler
+      Environment:
+        Variables:
+          UPLOAD_DDB_TABLE_NAME: !Ref UploadTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref UploadTable
+
   # AppSync Data Sources
 
-  UploadDDBDataSource:
+  UploadQueryLambdaDataSource:
     Type: AWS::AppSync::DataSource
     Properties:
       ApiId: !GetAtt AppSyncApi.ApiId
-      Name: UploadQueryDDBDataSource
-      Description: "The AppSync Data Source for the upload dynamodb table"
-      Type: AMAZON_DYNAMODB
+      Name: UploadQueryLambdaDataSource
+      Description: "The AppSync Lambda Data Source for the upload query"
+      Type: AWS_LAMBDA
       ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
-      DynamoDBConfig:
-        AwsRegion: !Ref "AWS::Region"
-        TableName: !Ref UploadTable
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt UploadQueryLambdaFunction.Arn
 
   UploadObjectLambdaDataSource:
     Type: AWS::AppSync::DataSource
@@ -400,13 +397,15 @@ Resources:
       ApiId: !GetAtt AppSyncApi.ApiId
       TypeName: Query
       FieldName: upload
-      DataSourceName: !GetAtt UploadDDBDataSource.Name
+      DataSourceName: !GetAtt UploadQueryLambdaDataSource.Name
       RequestMappingTemplate: |
         {
           "version": "2017-02-28",
-          "operation": "GetItem",
-          "key" : {
-            "id" : { "S" : "${context.arguments.id}" }
+          "operation": "Invoke",
+          "payload": {
+            "arguments": $utils.toJson($ctx.args),
+            "identity": $utils.toJson($context.identity),
+            "request": $utils.toJson($context.request),
           }
         }
       ResponseMappingTemplate: $util.toJson($context.result)
