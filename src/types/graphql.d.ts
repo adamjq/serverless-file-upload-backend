@@ -28,6 +28,7 @@ export interface GQLUpload {
   size?: number;
   mimeType?: string;
   thumbnail?: string;
+  downloadURL?: string;
 }
 
 export const enum GQLUploadStatus {
@@ -168,6 +169,7 @@ export interface GQLUploadTypeResolver<TParent = any> {
   size?: UploadToSizeResolver<TParent>;
   mimeType?: UploadToMimeTypeResolver<TParent>;
   thumbnail?: UploadToThumbnailResolver<TParent>;
+  downloadURL?: UploadToDownloadURLResolver<TParent>;
 }
 
 export interface UploadToIdResolver<TParent = any, TResult = any> {
@@ -211,6 +213,10 @@ export interface UploadToMimeTypeResolver<TParent = any, TResult = any> {
 }
 
 export interface UploadToThumbnailResolver<TParent = any, TResult = any> {
+  (parent: TParent, args: {}, context: any, info: GraphQLResolveInfo): TResult;
+}
+
+export interface UploadToDownloadURLResolver<TParent = any, TResult = any> {
   (parent: TParent, args: {}, context: any, info: GraphQLResolveInfo): TResult;
 }
 

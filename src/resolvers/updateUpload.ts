@@ -4,6 +4,7 @@ import { DynamoDB } from 'aws-sdk'
 import bunyan from 'bunyan'
 
 import {GQLUpload, GQLUpdateUploadInput} from "../types/graphql"
+import {getUploadPresignedUrl} from "../util";
 
 const UPLOAD_DDB_TABLE_NAME = process.env.UPLOAD_DDB_TABLE_NAME || ''
 
@@ -79,6 +80,7 @@ export const handler = async (event: HandlerEvent): Promise<GQLUpload | undefine
             logger.error({updatedItem}, `ERROR: ${err}`);
             return err
         }
+        updatedItem.downloadURL = getUploadPresignedUrl(updatedItem.location)
         return updatedItem
     }
 }

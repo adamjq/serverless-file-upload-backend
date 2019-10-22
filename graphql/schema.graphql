@@ -54,6 +54,8 @@ type Upload {
     mimeType: String
     # Base64 encoded thumbnail of the file
     thumbnail: String
+    # Pre-signed URL for downloading the file. Valid for 1 hour. Null when image hasn't been uploaded
+    downloadURL: String
 }
 
 enum UploadStatus {

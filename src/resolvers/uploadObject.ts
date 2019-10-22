@@ -5,6 +5,7 @@ import bunyan from 'bunyan'
 import uuidv4 from 'uuid/v4'
 
 import {GQLUpload, GQLUploadResponse, GQLUploadStatus} from "../types/graphql"
+import {getUploadPresignedUrl} from "../util";
 
 const UPLOAD_S3_BUCKET = process.env.UPLOAD_S3_BUCKET || ''
 const UPLOAD_S3_BUCKET_REGION = process.env.UPLOAD_S3_BUCKET_REGION || ''
@@ -51,6 +52,7 @@ export const handler = async (event: any) => {
         modified: currentTimestamp,
     }
 
+    let uploadResponse = {} as GQLUploadResponse
     // Store the upload in DynamoDB in a CREATED state
     const dbParams: DynamoDB.DocumentClient.PutItemInput = {
         TableName: UPLOAD_DDB_TABLE_NAME,
@@ -59,14 +61,16 @@ export const handler = async (event: any) => {
     try {
         await ddb.put(dbParams).promise();
         logger.info({uploadObject}, 'Successfully stored upload item');
-        const uploadResponse: GQLUploadResponse = {
+        uploadResponse = {
             upload: uploadObject,
             uploadURL: signedURL,
         }
-        logger.info({uploadResponse}, "Returning upload response");
-        return uploadResponse
     } catch (err) {
         logger.error({uploadObject}, `ERROR: ${err}`);
         return err
     }
+
+    uploadResponse.upload.downloadURL = getUploadPresignedUrl(S3LocationPath)
+    logger.info({uploadResponse}, "Returning upload response");
+    return uploadResponse
 }

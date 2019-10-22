@@ -42,6 +42,7 @@ describe("Update Upload tests", () => {
         "modified": mockISODateString,
         "size": 300,
         "mimeType": "image/png",
+          "downloadURL": "https://downloadhere.com"
       }
 
       const result = updateFields(mockUpdate, mockUpload)
