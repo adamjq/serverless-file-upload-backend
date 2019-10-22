@@ -15,6 +15,10 @@ Serverless backend for uploading files to S3 via a GraphQL API.
 
 ![Upload Architecture](media/architecture.png)
 
+#### Processing State Machine
+
+![Processing State Machine](media/stateMachine.png)
+
 ## Development
 
 - GraphQL schema to Typescript type generation is used with [graphql-schema-typescript](https://github.com/dangcuuson/graphql-schema-typescript)  
