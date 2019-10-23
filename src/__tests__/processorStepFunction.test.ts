@@ -1,4 +1,4 @@
-import { buildUpdate } from "../processors/persistMetadata"
+import { buildUpdate } from "../processor/processorStepFunction"
 import { GQLUpdateUploadInput, GQLUploadStatus } from "../types/graphql"
 
 describe("Persist Metadata tests", () => {

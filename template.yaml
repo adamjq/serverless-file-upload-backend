@@ -165,7 +165,7 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: ./handler.zip
-      Handler: startProcessor.handler
+      Handler: processor/startProcessor.handler
       Role: !GetAtt StartProcessorLambdaRole.Arn
       Environment:
         Variables:
@@ -189,12 +189,25 @@ Resources:
             Action:
               - "lambda:InvokeFunction"
             Resource:
-              - !GetAtt RetrieveMetadataLambdaFunction.Arn
-              - !GetAtt GenerateThumbnailLambdaFunction.Arn
-              - !GetAtt VirusScanLambdaFunction.Arn
-              - !GetAtt PersistMetadataLambdaFunction.Arn
+              - !GetAtt StepFunctionIndexLambdaFunction.Arn
       Roles:
         - !Ref ProcessorStateMachineRole
+
+  # Index lambda container processor step function states. Mapped using Path name parameter
+  StepFunctionIndexLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./handler.zip
+      Handler: processor/processorStepFunction.handler
+      Environment:
+        Variables:
+          APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
+          APPSYNC_REGION: !Ref "AWS::Region"
+          APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
+          UPLOAD_S3_BUCKET: !Ref S3BucketName
+      Policies:
+        - S3ReadPolicy:
+            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
 
   ProcessorStateMachineRole:
     Type: AWS::IAM::Role
@@ -228,7 +241,11 @@ Resources:
                     "States": {
                       "RetrieveMetadata": {
                         "Type": "Task",
-                        "Resource": "${RetrieveMetadataLambdaFunction.Arn}",
+                        "Parameters": {
+                          "Input.$": "$",
+                          "Path.$": "$$.State.Name"
+                        },
+                        "Resource": "${StepFunctionIndexLambdaFunction.Arn}",
                         "End": true
                       }
                     }
@@ -238,7 +255,11 @@ Resources:
                     "States": {
                       "GenerateThumbnail": {
                         "Type": "Task",
-                        "Resource": "${GenerateThumbnailLambdaFunction.Arn}",
+                        "Parameters": {
+                          "Input.$": "$",
+                          "Path.$": "$$.State.Name"
+                        },
+                        "Resource": "${StepFunctionIndexLambdaFunction.Arn}",
                         "End": true
                       }
                     }
@@ -248,7 +269,11 @@ Resources:
                     "States": {
                       "VirusScan": {
                         "Type": "Task",
-                        "Resource": "${VirusScanLambdaFunction.Arn}",
+                        "Parameters": {
+                          "Input.$": "$",
+                          "Path.$": "$$.State.Name"
+                        },
+                        "Resource": "${StepFunctionIndexLambdaFunction.Arn}",
                         "End": true
                       }
                     }
@@ -257,61 +282,16 @@ Resources:
               },
               "PersistMetadata": {
                 "Type": "Task",
-                "Resource": "${PersistMetadataLambdaFunction.Arn}",
+                "Parameters": {
+                  "Input.$": "$",
+                  "Path.$": "$$.State.Name"
+                },
+                "Resource": "${StepFunctionIndexLambdaFunction.Arn}",
                 "ResultPath": null,
                 "End": true
               }
             }
           }
-
-  # Final step function task, makes updateUpload mutation to AppSync
-  PersistMetadataLambdaFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ./handler.zip
-      Handler: processors/persistMetadata.handler
-      Environment:
-        Variables:
-          APPSYNC_URL: !GetAtt AppSyncApi.GraphQLUrl
-          APPSYNC_REGION: !Ref "AWS::Region"
-          APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
-          UPLOAD_S3_BUCKET: !Ref S3BucketName
-
-  RetrieveMetadataLambdaFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ./handler.zip
-      Handler: processors/retrieveMetadata.handler
-      Environment:
-        Variables:
-          UPLOAD_S3_BUCKET: !Ref S3BucketName
-      Policies:
-        - S3ReadPolicy:
-            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
-
-  VirusScanLambdaFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ./handler.zip
-      Handler: processors/virusScan.handler
-      Environment:
-        Variables:
-          UPLOAD_S3_BUCKET: !Ref S3BucketName
-      Policies:
-        - S3ReadPolicy:
-            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
-
-  GenerateThumbnailLambdaFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: ./handler.zip
-      Handler: processors/generateThumbnail.handler
-      Environment:
-        Variables:
-          UPLOAD_S3_BUCKET: !Ref S3BucketName
-      Policies:
-        - S3ReadPolicy:
-            BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
 
   UploadObjectLambdaFunction:
     Type: AWS::Serverless::Function
