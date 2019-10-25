@@ -106,7 +106,11 @@ export const persistMetadata = async (event: StepFunctionEventInput) => {
     }
 
     const gqlMutation = {
-        "query": "mutation UpdateUpload($location: String!, $update: UpdateUploadInput) { updateUpload(location: $location, update: $update) { id } }",
+        "query": `mutation UpdateUpload($location: String!, $update: UpdateUploadInput) {
+                    updateUpload(location: $location, update: $update) { 
+                        id, customerId, name, location, status, created, modified, description, size, mimeType, thumbnail, downloadURL
+                      }
+                    }`,
         "variables": { "location": location, "update": update }
     }
    logger.info({update, gqlMutation})
