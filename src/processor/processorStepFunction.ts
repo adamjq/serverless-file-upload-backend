@@ -18,7 +18,8 @@ interface StepFunctionEventInput {
     Path: StateMachinePath,
     Input: {
         Records: any[],
-        processResults?: any[]
+        processResults?: any[],
+        metadataResults?: any
     }
 }
 
@@ -59,6 +60,8 @@ export const retrieveMetadata = async (event: StepFunctionEventInput) => {
 export const generateThumbnail = async (event: StepFunctionEventInput) => {
     logger.info({event}, "Generating Thumbnail")
     const location = getS3LocationFromEvent(event.Input)
+    const metadata = event.Input.metadataResults
+
     return {
         thumbnail: null
     }
@@ -68,6 +71,7 @@ export const generateThumbnail = async (event: StepFunctionEventInput) => {
 export const virusScan = async (event: StepFunctionEventInput) => {
     logger.info({event}, "Scanning for virus")
     const location = getS3LocationFromEvent(event.Input)
+    const metadata = event.Input.metadataResults
 
     const scanSuccess = true
     if (scanSuccess) {
@@ -83,37 +87,13 @@ export const persistMetadata = async (event: StepFunctionEventInput) => {
     logger.info({event}, "Persisting metadata")
     const location = getS3LocationFromEvent(event.Input)
 
-    // These come from the previous parallel execution steps of the state machine
-    const update = buildUpdate(event.Input.processResults as any[])
-    logger.info({update}, "updateUpload input from processing steps")
+    const processResults = event.Input.processResults as any[]
 
-    const gqlMutation = {
-        "query": "mutation UpdateUpload($location: String!, $update: UpdateUploadInput) { updateUpload(location: $location, update: $update) { id } }",
-        "variables": { "location": location, "update": update }
-    }
-   logger.info({gqlMutation})
-
-    try {
-      const response = await axios.post(APPSYNC_URL, gqlMutation, { headers: {
-        'X-API-KEY': APPSYNC_API_KEY, 'Content-Type': 'application/json'
-      }})
-      logger.info({response})
-    } catch (error) {
-      logger.error({error})
-    }
-}
-
-/**
- * We take the results from parallel processing states and build the updateUpload GraphQL mutation input
- * @param processResults
- */
-export const buildUpdate = (processResults: any[]): GQLUpdateUploadInput => {
-    const retrieveMetadataResults = processResults[0]
-    const generateThumbnailResults = processResults[1]
-    const virusScanResults = processResults[2]
-
+    // We take the results from parallel processing states and build the updateUpload GraphQL mutation input
+    const retrieveMetadataResults = event.Input.metadataResults
+    const generateThumbnailResults = processResults[2]
+    const virusScanResults = processResults[1]
     const update: any = {}
-
     if (retrieveMetadataResults) {
         update.size = retrieveMetadataResults.size
         update.mimeType = retrieveMetadataResults.mimeType
@@ -124,5 +104,19 @@ export const buildUpdate = (processResults: any[]): GQLUpdateUploadInput => {
     if (virusScanResults && virusScanResults.status) {
         update.status = virusScanResults.status
     }
-    return update
+
+    const gqlMutation = {
+        "query": "mutation UpdateUpload($location: String!, $update: UpdateUploadInput) { updateUpload(location: $location, update: $update) { id } }",
+        "variables": { "location": location, "update": update }
+    }
+   logger.info({update, gqlMutation})
+
+    try {
+      const response = await axios.post(APPSYNC_URL, gqlMutation, { headers: {
+        'X-API-KEY': APPSYNC_API_KEY, 'Content-Type': 'application/json'
+      }})
+      logger.info({response})
+    } catch (error) {
+      logger.error({error})
+    }
 }

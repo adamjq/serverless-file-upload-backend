@@ -5,7 +5,7 @@ Description: Serverless backend and GraphQL API for uploading objects to S3 secu
 Parameters:
   S3BucketName:
     Type: String
-    Default: 'upload-service-s3-bucket'
+    Default: 'dev-upload-service-s3-bucket'
 
 Globals:
   Function:
@@ -65,6 +65,12 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref S3BucketName
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
       CorsConfiguration:
         CorsRules:
           - AllowedHeaders:
@@ -229,27 +235,23 @@ Resources:
         Fn::Sub: |
           {
             "Comment": "State Machine for processing uploaded files",
-            "StartAt": "ProcessFiles",
+            "StartAt": "RetrieveMetadata",
             "States": {
+              "RetrieveMetadata": {
+                "Type": "Task",
+                "Parameters": {
+                  "Input.$": "$",
+                  "Path.$": "$$.State.Name"
+                },
+                "Resource": "${StepFunctionIndexLambdaFunction.Arn}",
+                "ResultPath": "$.metadataResults",
+                "Next": "ProcessFiles"
+              },
               "ProcessFiles": {
                 "Type": "Parallel",
                 "ResultPath": "$.processResults",
                 "Next": "PersistMetadata",
                 "Branches": [
-                  {
-                    "StartAt": "RetrieveMetadata",
-                    "States": {
-                      "RetrieveMetadata": {
-                        "Type": "Task",
-                        "Parameters": {
-                          "Input.$": "$",
-                          "Path.$": "$$.State.Name"
-                        },
-                        "Resource": "${StepFunctionIndexLambdaFunction.Arn}",
-                        "End": true
-                      }
-                    }
-                  },
                   {
                     "StartAt": "GenerateThumbnail",
                     "States": {

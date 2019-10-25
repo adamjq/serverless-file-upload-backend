@@ -258,7 +258,7 @@ export interface GQLSubscriptionTypeResolver<TParent = any> {
 }
 
 export interface SubscriptionToNewUploadUpdateArgs {
-  customerId: string;
+  customerId?: string;
 }
 export interface SubscriptionToNewUploadUpdateResolver<TParent = any, TResult = any> {
   resolve?: (parent: TParent, args: SubscriptionToNewUploadUpdateArgs, context: any, info: GraphQLResolveInfo) => TResult;

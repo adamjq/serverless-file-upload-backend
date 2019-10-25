@@ -14,8 +14,10 @@ export const handler = async (event: any, context: any) => {
       stateMachineArn: PROCESSING_STATE_MACHINE_ARN,
       input: JSON.stringify(event),
     }
-    await SF.startExecution(params).promise()
-        .then((data: any) => { logger.info("Processor state machine successfully invoked") })
-        .catch((err: any) => { logger.error({error: err, stack: err.stack}, "Error occurred invoking processor state machine") })
-    logger.info("Exiting")
+    try {
+        const result = await SF.startExecution(params).promise()
+        logger.info("Processor state machine successfully invoked")
+    } catch (err) {
+        logger.error({error: err, stack: err.stack}, "Error occurred invoking processor state machine")
+    }
 }

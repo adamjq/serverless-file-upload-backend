@@ -8,7 +8,7 @@ import {getUploadPresignedUrl} from "../util";
 
 const UPLOAD_DDB_TABLE_NAME = process.env.UPLOAD_DDB_TABLE_NAME || ''
 
-const logger = bunyan.createLogger({name: "uploadObject"})
+const logger = bunyan.createLogger({name: "updateUpload"})
 
 const ddb = new DynamoDB.DocumentClient()
 
@@ -75,12 +75,14 @@ export const handler = async (event: HandlerEvent): Promise<GQLUpload | undefine
         }
         try {
             await ddb.put(dbPutParams).promise();
-            logger.info({updatedItem}, 'Successfully updated upload item');
+            logger.info("Update in dynamodb succeeded");
         } catch (err) {
             logger.error({updatedItem}, `ERROR: ${err}`);
             return err
         }
         updatedItem.downloadURL = getUploadPresignedUrl(updatedItem.location)
+        logger.info({updatedItem}, 'Returning updated upload item');
         return updatedItem
     }
+    logger.error("No record in dynamodb to update");
 }

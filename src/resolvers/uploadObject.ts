@@ -49,7 +49,7 @@ export const handler = async (event: any) => {
         description: uploadInput.description,
         status: DEFAULT_STATUS,
         created: currentTimestamp,
-        modified: currentTimestamp,
+        modified: currentTimestamp
     }
 
     let uploadResponse = {} as GQLUploadResponse
