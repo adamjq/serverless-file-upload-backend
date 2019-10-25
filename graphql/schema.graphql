@@ -9,11 +9,11 @@ type Query {
 
 type Mutation {
     uploadObject(upload: UploadObjectInput!): UploadResponse!
-    updateUpload(location: String!, update : UpdateUploadInput): Upload!
+    updateUpload(location: String!, update : UpdateUploadInput): Upload
 }
 
 type Subscription {
-    newUploadUpdate(customerId: String): Upload
+    newUploadUpdate(id: String!): Upload
         @aws_subscribe(mutations: ["updateUpload"])
 }
 

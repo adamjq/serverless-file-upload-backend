@@ -44,7 +44,7 @@ export type GQLAWSDateTime = any;
 
 export interface GQLMutation {
   uploadObject: GQLUploadResponse;
-  updateUpload: GQLUpload;
+  updateUpload?: GQLUpload;
 }
 
 export interface GQLUploadObjectInput {
@@ -258,7 +258,7 @@ export interface GQLSubscriptionTypeResolver<TParent = any> {
 }
 
 export interface SubscriptionToNewUploadUpdateArgs {
-  customerId?: string;
+  id: string;
 }
 export interface SubscriptionToNewUploadUpdateResolver<TParent = any, TResult = any> {
   resolve?: (parent: TParent, args: SubscriptionToNewUploadUpdateArgs, context: any, info: GraphQLResolveInfo) => TResult;

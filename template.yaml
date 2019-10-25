@@ -96,6 +96,13 @@ Resources:
         CloudWatchLogsRoleArn: !GetAtt AppSyncServiceRole.Arn
         FieldLogLevel: ERROR
 
+  AppSyncApiIdSSMParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "/uploads/appsync/ApiId"
+      Type: String
+      Value: !GetAtt AppSyncApi.ApiId
+
   AppSyncSchema:
     Type: AWS::AppSync::GraphQLSchema
     Properties:
