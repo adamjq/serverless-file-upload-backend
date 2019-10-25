@@ -329,6 +329,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UploadTable
+        - S3ReadPolicy:
+            BucketName: !Ref UploadObjectBucket
 
   UploadQueryLambdaFunction:
     Type: AWS::Serverless::Function
@@ -341,6 +343,8 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref UploadTable
+        - S3ReadPolicy:
+            BucketName: !Ref UploadObjectBucket
 
   # AppSync Data Sources
 

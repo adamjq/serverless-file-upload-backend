@@ -25,3 +25,4 @@ export const getUploadPresignedUrl = (location: string): string => {
     const signedURL = s3.getSignedUrl('getObject', params)
     return signedURL
 }
+
