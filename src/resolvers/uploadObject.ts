@@ -28,7 +28,7 @@ export const handler = async (event: any) => {
 
     const currentTimestamp = new Date().toISOString()
     const uploadId = uuidv4()
-    const s3BucketKey = uuidv4()
+    const s3BucketKey = `${uuidv4()}${uploadInput.name}`
 
     // Params for S3 pre-signed URL putObject request
     const params = {
