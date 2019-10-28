@@ -5,7 +5,7 @@ import bunyan from 'bunyan'
 import uuidv4 from 'uuid/v4'
 
 import {GQLUpload, GQLUploadResponse, GQLUploadStatus} from "../types/graphql"
-import {getUploadPresignedUrl} from "../util";
+import {getDownloadPresignedUrl} from "../util";
 
 const UPLOAD_S3_BUCKET = process.env.UPLOAD_S3_BUCKET || ''
 const UPLOAD_S3_BUCKET_REGION = process.env.UPLOAD_S3_BUCKET_REGION || ''
@@ -28,7 +28,7 @@ export const handler = async (event: any) => {
 
     const currentTimestamp = new Date().toISOString()
     const uploadId = uuidv4()
-    const s3BucketKey = `${uuidv4()}${uploadInput.name}`
+    const s3BucketKey = uuidv4()
 
     // Params for S3 pre-signed URL putObject request
     const params = {
@@ -70,7 +70,8 @@ export const handler = async (event: any) => {
         return err
     }
 
-    uploadResponse.upload.downloadURL = getUploadPresignedUrl(S3LocationPath)
+    // Nothing has been uploaded yet
+    uploadResponse.upload.downloadURL = undefined
     logger.info({uploadResponse}, "Returning upload response");
     return uploadResponse
 }

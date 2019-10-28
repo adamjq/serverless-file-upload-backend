@@ -1,10 +1,10 @@
 'use strict'
 
-import { DynamoDB } from 'aws-sdk'
+import {DynamoDB} from 'aws-sdk'
 import bunyan from 'bunyan'
 
-import {GQLUpload, GQLUpdateUploadInput} from "../types/graphql"
-import {getUploadPresignedUrl} from "../util";
+import {GQLUpdateUploadInput, GQLUpload, GQLUploadStatus} from "../types/graphql"
+import {getDownloadPresignedUrl} from "../util";
 
 const UPLOAD_DDB_TABLE_NAME = process.env.UPLOAD_DDB_TABLE_NAME || ''
 
@@ -80,7 +80,13 @@ export const handler = async (event: HandlerEvent): Promise<GQLUpload | undefine
             logger.error({updatedItem}, `ERROR: ${err}`);
             return err
         }
-        updatedItem.downloadURL = getUploadPresignedUrl(updatedItem.location)
+
+        // Only return a download URL if the item is uploaded
+        if (updatedItem.status === GQLUploadStatus.COMPLETED) {
+            updatedItem.downloadURL = getDownloadPresignedUrl(updatedItem.location, updatedItem.name)
+        } else {
+            updatedItem.downloadURL = undefined
+        }
         logger.info({updatedItem}, 'Returning updated upload item');
         return updatedItem
     }

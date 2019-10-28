@@ -2,8 +2,8 @@
 
 import { DynamoDB } from 'aws-sdk'
 import bunyan from 'bunyan'
-import {GQLUpload} from "../types/graphql"
-import { getUploadPresignedUrl } from "../util"
+import {GQLUpload, GQLUploadStatus} from "../types/graphql"
+import { getDownloadPresignedUrl } from "../util"
 
 const UPLOAD_DDB_TABLE_NAME = process.env.UPLOAD_DDB_TABLE_NAME || ''
 
@@ -39,7 +39,13 @@ export const handler = async (event: any) => {
         return err;
     }
 
-    upload.downloadURL = getUploadPresignedUrl(upload.location)
+    // Only return a download URL if the item is uploaded
+    if (upload.status === GQLUploadStatus.COMPLETED) {
+        upload.downloadURL = getDownloadPresignedUrl(upload.location, upload.name)
+    } else {
+        upload.downloadURL = undefined
+    }
+
     logger.info({upload}, 'Returning upload item');
     return upload
 }
