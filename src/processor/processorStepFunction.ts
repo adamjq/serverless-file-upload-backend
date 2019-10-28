@@ -4,6 +4,8 @@ import bunyan from 'bunyan'
 import {getS3LocationFromEvent} from "../util"
 import {GQLUpdateUploadInput, GQLUploadStatus} from "../types/graphql"
 import axios from "axios"
+import { S3 } from "aws-sdk"
+const fileType = require('file-type')
 
 const logger = bunyan.createLogger({name: "processorStepFunction"})
 
@@ -22,6 +24,18 @@ interface StepFunctionEventInput {
         metadataResults?: any
     }
 }
+
+interface MimeType {
+    ext: string,
+    mime: string
+}
+
+interface Metadata {
+    size: number,
+    mimeType: string | undefined
+}
+
+const s3 = new S3({apiVersion: '2006-03-01'})
 
 export const handler = async (event: StepFunctionEventInput, context: any) => {
     logger.info({event, context})
@@ -45,15 +59,31 @@ export const handler = async (event: StepFunctionEventInput, context: any) => {
     }
 }
 
-// TODO: Actually implement this
-export const retrieveMetadata = async (event: StepFunctionEventInput) => {
+export const retrieveMetadata = async (event: StepFunctionEventInput): Promise<Metadata> => {
     logger.info({event}, "Retrieving Metadata")
-    const metadata = {
-        size: event.Input.Records[0].s3.object.size,
-        mimeType: 'image/png'
+    try {
+        const params = {
+            Bucket: UPLOAD_S3_BUCKET,
+            Key: event.Input.Records[0].s3.object.key,
+            Range: `bytes=0-${fileType.minimumBytes}`
+        }
+        const data = await s3.getObject(params).promise()
+        const mimeType: MimeType = fileType(data.Body)
+        logger.info({mimeType, data}, "File downloaded and mime type determined")
+        const metadata: Metadata = {
+            size: event.Input.Records[0].s3.object.size,
+            mimeType: mimeType ? mimeType.mime : undefined
+        }
+        logger.info({metadata}, "Metadata retrieved successfully")
+        return metadata
+    } catch (err) {
+        logger.error({err}, "Error determining file mime type")
+        const metadata: Metadata = {
+            size: event.Input.Records[0].s3.object.size,
+            mimeType: undefined
+        }
+        return metadata
     }
-    logger.info({metadata}, "Metadata retrieved successfully")
-    return metadata
 }
 
 // TODO: Actually implement this
