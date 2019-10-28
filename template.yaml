@@ -5,7 +5,7 @@ Description: Serverless backend and GraphQL API for uploading objects to S3 secu
 Parameters:
   S3BucketName:
     Type: String
-    Default: 'dev-upload-service-s3-bucket'
+    Default: 'upload-service-s3-bucket'
 
 Globals:
   Function:
