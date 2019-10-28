@@ -27,8 +27,8 @@ export interface GQLUpload {
   description?: string;
   size?: number;
   mimeType?: string;
-  thumbnail?: string;
-  downloadURL?: string;
+  thumbnail?: GQLS3Object;
+  downloadURL?: GQLAWSURL;
 }
 
 export const enum GQLUploadStatus {
@@ -41,6 +41,18 @@ export const enum GQLUploadStatus {
  * The AWSDateTime scalar type represents a valid extended ISO 8601 DateTime string. In other words, this scalar type accepts datetime strings of the form YYYY-MM-DDThh:mm:ss.sssZ. The field after the seconds field is a nanoseconds field. It can accept between 1 and 9 digits. The seconds and nanoseconds fields are optional (the seconds field must be specified if the nanoseconds field is to be used). The time zone offset is compulsory for this scalar. The time zone offset must either be Z (representing the UTC time zone) or be in the format ±hh:mm:ss. The seconds field in the timezone offset will be considered valid even though it is not part of the ISO 8601 standard.
  */
 export type GQLAWSDateTime = any;
+
+export interface GQLS3Object {
+  bucket: string;
+  key: string;
+  region?: string;
+  downloadURL?: GQLAWSURL;
+}
+
+/**
+ * The AWSURL scalar type represents a valid URL string. The URL may use any scheme and may also be a local URL (Ex: <http://localhost/>). URLs without schemes are considered invalid. URLs which contain double slashes are also considered invalid.
+ */
+export type GQLAWSURL = any;
 
 export interface GQLMutation {
   uploadObject: GQLUploadResponse;
@@ -58,18 +70,20 @@ export interface GQLUploadResponse {
   uploadURL: GQLAWSURL;
 }
 
-/**
- * The AWSURL scalar type represents a valid URL string. The URL may use any scheme and may also be a local URL (Ex: <http://localhost/>). URLs without schemes are considered invalid. URLs which contain double slashes are also considered invalid.
- */
-export type GQLAWSURL = any;
-
 export interface GQLUpdateUploadInput {
   name?: string;
   description?: string;
   status: GQLUploadStatus;
   size?: number;
   mimeType?: string;
-  thumbnail?: string;
+  thumbnail?: GQLS3ObjectInput;
+}
+
+export interface GQLS3ObjectInput {
+  bucket: string;
+  key: string;
+  region?: string;
+  downloadURL?: GQLAWSURL;
 }
 
 export interface GQLSubscription {
@@ -133,9 +147,10 @@ export interface GQLResolver {
   Query?: GQLQueryTypeResolver;
   Upload?: GQLUploadTypeResolver;
   AWSDateTime?: GraphQLScalarType;
+  S3Object?: GQLS3ObjectTypeResolver;
+  AWSURL?: GraphQLScalarType;
   Mutation?: GQLMutationTypeResolver;
   UploadResponse?: GQLUploadResponseTypeResolver;
-  AWSURL?: GraphQLScalarType;
   Subscription?: GQLSubscriptionTypeResolver;
   Schema?: GQLSchemaTypeResolver;
   AWSDate?: GraphQLScalarType;
@@ -217,6 +232,29 @@ export interface UploadToThumbnailResolver<TParent = any, TResult = any> {
 }
 
 export interface UploadToDownloadURLResolver<TParent = any, TResult = any> {
+  (parent: TParent, args: {}, context: any, info: GraphQLResolveInfo): TResult;
+}
+
+export interface GQLS3ObjectTypeResolver<TParent = any> {
+  bucket?: S3ObjectToBucketResolver<TParent>;
+  key?: S3ObjectToKeyResolver<TParent>;
+  region?: S3ObjectToRegionResolver<TParent>;
+  downloadURL?: S3ObjectToDownloadURLResolver<TParent>;
+}
+
+export interface S3ObjectToBucketResolver<TParent = any, TResult = any> {
+  (parent: TParent, args: {}, context: any, info: GraphQLResolveInfo): TResult;
+}
+
+export interface S3ObjectToKeyResolver<TParent = any, TResult = any> {
+  (parent: TParent, args: {}, context: any, info: GraphQLResolveInfo): TResult;
+}
+
+export interface S3ObjectToRegionResolver<TParent = any, TResult = any> {
+  (parent: TParent, args: {}, context: any, info: GraphQLResolveInfo): TResult;
+}
+
+export interface S3ObjectToDownloadURLResolver<TParent = any, TResult = any> {
   (parent: TParent, args: {}, context: any, info: GraphQLResolveInfo): TResult;
 }
 

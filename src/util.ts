@@ -28,3 +28,15 @@ export const getDownloadPresignedUrl = (location: string, filename: string): str
     return signedURL
 }
 
+export const getThumbnailPresignedUrl = (bucket: string, key: string, filename: string): string => {
+    const s3 = new S3({apiVersion: '2006-03-01'})
+    // Setting the response content disposition makes the file download with the name the user uploaded it with
+    const params = {
+        Bucket: bucket,
+        Key: key,
+        Expires: DOWNLOAD_URL_EXPIRY_TIME,
+        ResponseContentDisposition: `attachment; filename="thumbnail-${filename}";`
+    }
+    const signedURL = s3.getSignedUrl('getObject', params)
+    return signedURL
+}

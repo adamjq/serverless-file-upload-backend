@@ -7,6 +7,10 @@ Parameters:
     Type: String
     Default: 'upload-service-s3-bucket'
 
+  ThumbnailS3BucketName:
+    Type: String
+    Default: 'upload-service-thumbnail-s3-bucket'
+
 Globals:
   Function:
     Runtime: nodejs10.x
@@ -65,6 +69,27 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref S3BucketName
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - PUT
+              - HEAD
+            AllowedOrigins:
+              - "*"
+
+  ThumbnailBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref ThumbnailS3BucketName
       VersioningConfiguration:
         Status: Enabled
       BucketEncryption:
@@ -218,9 +243,13 @@ Resources:
           APPSYNC_REGION: !Ref "AWS::Region"
           APPSYNC_API_KEY: !GetAtt AppSyncApiKey.ApiKey
           UPLOAD_S3_BUCKET: !Ref S3BucketName
+          THUMBNAIL_S3_BUCKET: !Ref ThumbnailS3BucketName
+
       Policies:
         - S3ReadPolicy:
             BucketName: !Ref S3BucketName # Reference bucket name vs resource to avoid circular dependency
+        - S3CrudPolicy:
+            BucketName: !Ref ThumbnailS3BucketName # Reference bucket name vs resource to avoid circular dependency
 
   ProcessorStateMachineRole:
     Type: AWS::IAM::Role
@@ -315,6 +344,8 @@ Resources:
       Policies:
         - S3CrudPolicy:
             BucketName: !Ref UploadObjectBucket
+        - S3ReadPolicy:
+            BucketName: !Ref ThumbnailBucket
         - DynamoDBCrudPolicy:
             TableName: !Ref UploadTable
 
@@ -331,6 +362,8 @@ Resources:
             TableName: !Ref UploadTable
         - S3ReadPolicy:
             BucketName: !Ref UploadObjectBucket
+        - S3ReadPolicy:
+            BucketName: !Ref ThumbnailBucket
 
   UploadQueryLambdaFunction:
     Type: AWS::Serverless::Function
@@ -345,6 +378,8 @@ Resources:
             TableName: !Ref UploadTable
         - S3ReadPolicy:
             BucketName: !Ref UploadObjectBucket
+        - S3ReadPolicy:
+            BucketName: !Ref ThumbnailBucket
 
   # AppSync Data Sources
 

@@ -2,10 +2,12 @@
 
 import bunyan from 'bunyan'
 import {getS3LocationFromEvent} from "../util"
-import {GQLUpdateUploadInput, GQLUploadStatus} from "../types/graphql"
+import {GQLS3ObjectInput, GQLUpdateUploadInput, GQLUploadStatus} from "../types/graphql"
 import axios from "axios"
 import { S3 } from "aws-sdk"
-const fileType = require('file-type')
+import fileType from 'file-type'
+import Sharp from 'sharp'
+const sizeOf = require('image-size')
 
 const logger = bunyan.createLogger({name: "processorStepFunction"})
 
@@ -13,6 +15,10 @@ const APPSYNC_URL = process.env.APPSYNC_URL || ''
 const APPSYNC_REGION = process.env.APPSYNC_REGION || ''
 const APPSYNC_API_KEY = process.env.APPSYNC_API_KEY || ''
 const UPLOAD_S3_BUCKET = process.env.UPLOAD_S3_BUCKET || ''
+const THUMBNAIL_S3_BUCKET = process.env.THUMBNAIL_S3_BUCKET || ''
+
+const MAX_WIDTH  = 100
+const MAX_HEIGHT = 100
 
 type StateMachinePath = "RetrieveMetadata" | "GenerateThumbnail" | "VirusScan" | "PersistMetadata"
 
@@ -68,7 +74,7 @@ export const retrieveMetadata = async (event: StepFunctionEventInput): Promise<M
             Range: `bytes=0-${fileType.minimumBytes}`
         }
         const data = await s3.getObject(params).promise()
-        const mimeType: MimeType = fileType(data.Body)
+        const mimeType = fileType(data.Body as Buffer)
         logger.info({mimeType, data}, "File downloaded and mime type determined")
         const metadata: Metadata = {
             size: event.Input.Records[0].s3.object.size,
@@ -86,14 +92,65 @@ export const retrieveMetadata = async (event: StepFunctionEventInput): Promise<M
     }
 }
 
-// TODO: Actually implement this
 export const generateThumbnail = async (event: StepFunctionEventInput) => {
     logger.info({event}, "Generating Thumbnail")
     const location = getS3LocationFromEvent(event.Input)
     const metadata = event.Input.metadataResults
 
-    return {
-        thumbnail: null
+    if (metadata.mimeType && metadata.mimeType.split("/")[0] === "image") {
+
+        try {
+
+            const objectKey = event.Input.Records[0].s3.object.key
+            const thumbnailKey = `thumbnail-${objectKey}`
+
+            // Download the original object
+            const getParams = {
+                Bucket: UPLOAD_S3_BUCKET,
+                Key: objectKey
+            }
+            const data = await s3.getObject(getParams).promise()
+            logger.info("Downloaded object from S3 to generate thumbnail")
+
+            const dimensions = sizeOf(data.Body)
+            const scalingFactor = Math.min(
+                MAX_WIDTH / dimensions.width,
+                MAX_HEIGHT / dimensions.height
+            )
+            const width = Math.round(scalingFactor * dimensions.width)
+            const height = Math.round(scalingFactor * dimensions.height)
+
+            const thumbnailBuffer = await Sharp(data.Body as Buffer)
+                .resize(width, height)
+                .toBuffer()
+            logger.info("Downloaded object from S3 to generate thumbnail")
+
+            // Upload the thumbnail
+            const putParams = {
+                Body: thumbnailBuffer,
+                Bucket: THUMBNAIL_S3_BUCKET,
+                Key: thumbnailKey
+            }
+            const thumbnailResponseData = await s3.putObject(putParams).promise()
+
+            const thumbnailObject: GQLS3ObjectInput = {
+                bucket: THUMBNAIL_S3_BUCKET,
+                key: thumbnailKey,
+            }
+            logger.info({thumbnailBuffer, thumbnailObject, thumbnailResponseData}, "Thumbnail generated and uploaded")
+            return {
+                thumbnail: thumbnailObject
+            }
+        } catch (err) {
+            logger.error({err}, "Error handling thumbnail")
+            return {
+                thumbnail: null
+            }
+        }
+    } else {
+        return {
+            thumbnail: null
+        }
     }
 }
 
@@ -121,7 +178,7 @@ export const persistMetadata = async (event: StepFunctionEventInput) => {
 
     // We take the results from parallel processing states and build the updateUpload GraphQL mutation input
     const retrieveMetadataResults = event.Input.metadataResults
-    const generateThumbnailResults = processResults[2]
+    const generateThumbnailResults = processResults[0]
     const virusScanResults = processResults[1]
     const update: any = {}
     if (retrieveMetadataResults) {

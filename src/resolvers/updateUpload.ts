@@ -4,7 +4,7 @@ import {DynamoDB} from 'aws-sdk'
 import bunyan from 'bunyan'
 
 import {GQLUpdateUploadInput, GQLUpload, GQLUploadStatus} from "../types/graphql"
-import {getDownloadPresignedUrl} from "../util";
+import {getDownloadPresignedUrl, getThumbnailPresignedUrl} from "../util";
 
 const UPLOAD_DDB_TABLE_NAME = process.env.UPLOAD_DDB_TABLE_NAME || ''
 
@@ -86,6 +86,9 @@ export const handler = async (event: HandlerEvent): Promise<GQLUpload | undefine
             updatedItem.downloadURL = getDownloadPresignedUrl(updatedItem.location, updatedItem.name)
         } else {
             updatedItem.downloadURL = undefined
+        }
+        if (updatedItem.thumbnail) {
+            updatedItem.thumbnail.downloadURL = getThumbnailPresignedUrl(updatedItem.thumbnail.bucket, updatedItem.thumbnail.key, updatedItem.name)
         }
         logger.info({updatedItem}, 'Returning updated upload item');
         return updatedItem

@@ -29,7 +29,7 @@ input UpdateUploadInput {
     status: UploadStatus!
     size: Int
     mimeType: String
-    thumbnail: String
+    thumbnail: S3ObjectInput
 }
 
 type UploadResponse {
@@ -52,11 +52,26 @@ type Upload {
     size: Int
     # Mime type of the file e.g. 'text/plain' or 'image/jpeg'
     mimeType: String
-    # Base64 encoded thumbnail of the file
-    thumbnail: String
+    # Resized thumbnail of the file
+    thumbnail: S3Object
     # Pre-signed URL for downloading the file. Valid for 1 hour. Null when image hasn't been uploaded
-    downloadURL: String
+    downloadURL: AWSURL
 }
+
+type S3Object {
+  bucket: String!
+  key: String!
+  region: String
+  downloadURL: AWSURL
+}
+
+input S3ObjectInput {
+  bucket: String!
+  key: String!
+  region: String
+  downloadURL: AWSURL
+}
+
 
 enum UploadStatus {
     COMPLETED
